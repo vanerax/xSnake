@@ -27,15 +27,16 @@ function SnakeModel() {
          posY: Math.floor((this.mapHeight - 1) / 2),
          direction: Direction.UP
       },
-      body: [{
-         posX: Math.floor((this.mapWidth - 1) / 2),
-         posY: Math.floor((this.mapHeight - 1) / 2) + 1
-      }, {
-         posX: Math.floor((this.mapWidth - 1) / 2),
-         posY: Math.floor((this.mapHeight - 1) / 2) + 2
-      }]
+      body: [
+      // {
+      //    posX: Math.floor((this.mapWidth - 1) / 2),
+      //    posY: Math.floor((this.mapHeight - 1) / 2) + 1
+      // }, {
+      //    posX: Math.floor((this.mapWidth - 1) / 2),
+      //    posY: Math.floor((this.mapHeight - 1) / 2) + 2
+      // }
+      ]
    };
-
    this.snake = {
       head: {},
       body: _oSnake.body
@@ -58,6 +59,15 @@ function SnakeModel() {
          _oSnakeModel.onModelChange();
       }
    });
+   Object.defineProperty(this.snake.head, 'direction', {
+      get: function() {
+         return _oSnake.head.direction;
+      },
+      set: function(nValue) {
+         _oSnake.head.direction = nValue;
+         _oSnakeModel.onModelChange();
+      }
+   });
 
    this.onModelChange = function() { };
 
@@ -75,7 +85,7 @@ function SnakeModel() {
       };
    };
 
-   this.getNextPosition = function(eDirection, oCurPos) {
+   this.calcNextPosition = function(eDirection, oCurPos) {
       var oNextPos = {
          x: oCurPos.x,
          y: oCurPos.y
@@ -123,8 +133,34 @@ function SnakeModel() {
       return eRet;
    };
 
+   this.getNextDirection = function(eDirection) {
+      var aDirs = [Direction.DOWN, Direction.RIGHT, Direction.UP, Direction.LEFT];
+      var nPos = aDirs.indexOf(eDirection);
+      nPos = (nPos + 1) % aDirs.length;
+      return aDirs[nPos];
+   };
+
+   // return where is oCurPos
+   this.calcDirection = function(oCurPos, oRelPos) {
+      var eDir;
+      if (oCurPos.y === oRelPos.y) {
+         if (oCurPos.x > oRelPos.x) {
+            eDir = Direction.RIGHT;
+         } else if (oCurPos.x < oRelPos.x) {
+            eDir = Direction.LEFT;
+         }
+      } else if (oCurPos.x === oRelPos.x) {
+         if (oCurPos.y > oRelPos.y) {
+            eDir = Direction.DOWN;
+         } else if (oCurPos.y < oRelPos.y) {
+            eDir = Direction.UP;
+         }
+      }
+      return eDir;
+   };
+
    this.move = function(eDirection) {
-      var oNextPos = this.getNextPosition(eDirection, this.getHeadPosition());
+      var oNextPos = this.calcNextPosition(eDirection, this.getHeadPosition());
       var _fMoveBody = function() {
          var oBody = _oSnakeModel.snake.body;
          for (var i=oBody.length-1; i>0; i--) {
@@ -145,7 +181,7 @@ function SnakeModel() {
    };
 
    this.isReachable = function(eDirection) {
-      var oPos = this.getNextPosition(eDirection, this.getHeadPosition());
+      var oPos = this.calcNextPosition(eDirection, this.getHeadPosition());
       return this.isInMap(oPos) && !this.isSelfOccupied(oPos);
    };
 
@@ -170,19 +206,58 @@ function SnakeModel() {
    };
 
    this.addTail = function() {
+      var oNextPos;
+      var eFirstDir, eDir;
+      var oCurPos, oRelPos;
       if (this.snake.body.length === 0) {
-         var eDir = this.getReverseDirection(this.snake.head.direction);
-         var oPos = this.getNextPosition(eDir, this.getHeadPosition());
-         this.snake.body.add({
-            posX: oPos.x,
-            posY: oPos.y
-         });
+         eDir = this.getReverseDirection(this.snake.head.direction);
+         oNextPos = this.calcNextPosition(eDir, this.getHeadPosition());
+         
       } else if (this.snake.body.length === 1) {
-         //this.snake.body[0]
+         oRelPos = { 
+            x: this.snake.head.posX,
+            y: this.snake.head.posY
+         };
+         oCurPos = {
+            x: this.snake.body[0].posX,
+            y: this.snake.body[0].posY
+         };
+         eDir = this.calcDirection(oCurPos, oRelPos);
+         oNextPos = this.calcNextPosition(eDir, oCurPos);
       } else {
-         // this.snake.body[this.snake.body.length-1];
+         var nLen = this.snake.body.length;
+         oRelPos = { 
+            x: this.snake.body[nLen-2].posX,
+            y: this.snake.body[nLen-2].posY
+         };
+         oCurPos = {
+            x: this.snake.body[nLen-1].posX,
+            y: this.snake.body[nLen-1].posY
+         };
+         eDir = this.calcDirection(oCurPos, oRelPos);
+         oNextPos = this.calcNextPosition(eDir, oCurPos);
+      }    
+
+      eFirstDir = eDir;
+      while (!this.isCellAvailable(oNextPos)) {
+         eDir = this.getNextDirection(eDir);
+         if (eDir === eFirstDir) {
+            throw "unable to add tail";
+         }
+         oNextPos = this.calcNextPosition(eDir, oCurPos);
       }
+
+      this.snake.body.push({
+         posX: oNextPos.x,
+         posY: oNextPos.y
+      });
    };
+
+   this.addTails = function(nLength) {
+      for (var i=0;i<nLength;i++) {
+         this.addTail();
+      }
+   }
 }
 
 window.onload = function() {
@@ -249,6 +324,8 @@ window.onload = function() {
    };
 
    var oSnakeModel = new SnakeModel();
+
+   oSnakeModel.addTails(3);
    var elCanvas = document.getElementById("canvas");
    renderLayout(elCanvas, oSnakeModel);
    //renderSnake(elCanvas, oSnakeModel);
