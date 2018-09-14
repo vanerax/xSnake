@@ -69,6 +69,12 @@ function SnakeModel() {
       }
    });
 
+   this.food = {};
+
+   this.generateFood = function() {
+
+   };
+
    this.onModelChange = function() { };
 
    this.onKeyDown = function(oEvent) {
@@ -257,7 +263,7 @@ function SnakeModel() {
       for (var i=0;i<nLength;i++) {
          this.addTail();
       }
-   }
+   };
 }
 
 window.onload = function() {
@@ -321,6 +327,10 @@ window.onload = function() {
             }
          }
       }
+   };
+
+   var renderFoodCell = function(elCell, oContext) {
+
    };
 
    var oSnakeModel = new SnakeModel();
