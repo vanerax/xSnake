@@ -14,12 +14,34 @@ var KeyCodeToDirection = {
    37: Direction.LEFT
 };
 
+function SeededRandom(nMin, nMax) {
+   this._seed = 0;
+
+   this.init = function() {
+      this._seed = Math.floor(Math.random() * 10000);
+   };
+
+   this.setSeed = function(nSeed) {
+      this._seed = nSeed;
+   };
+
+   this.generate = function(nMin, nMax) {
+      nMin = nMin || 0;
+      nMax = nMax || 1;
+
+      this._seed = (this._seed * 9301 + 49297) % 233280;
+      var nRnd = this._seed / 233280;
+      return nMin + nRnd * (nMax - nMin);
+   };
+}
+
 function SnakeModel() {
    var _oSnakeModel = this;
 
    this.cellUnit = 32;
    this.mapWidth = 20;
    this.mapHeight = 10;
+   this.seededRandom = new SeededRandom();
 
    var _oSnake = {
       head: {
@@ -27,15 +49,7 @@ function SnakeModel() {
          posY: Math.floor((this.mapHeight - 1) / 2),
          direction: Direction.UP
       },
-      body: [
-      // {
-      //    posX: Math.floor((this.mapWidth - 1) / 2),
-      //    posY: Math.floor((this.mapHeight - 1) / 2) + 1
-      // }, {
-      //    posX: Math.floor((this.mapWidth - 1) / 2),
-      //    posY: Math.floor((this.mapHeight - 1) / 2) + 2
-      // }
-      ]
+      body: []
    };
    this.snake = {
       head: {},
@@ -69,10 +83,14 @@ function SnakeModel() {
       }
    });
 
-   this.food = {};
+   this.food = {
+
+   };
 
    this.generateFood = function() {
-
+      var oPos = this.generateAvailablePosition();
+      this.food.posX = oPos.x;
+      this.food.posY = oPos.y;
    };
 
    this.onModelChange = function() { };
@@ -264,6 +282,21 @@ function SnakeModel() {
          this.addTail();
       }
    };
+
+   this.generateAvailablePosition = function() {
+      var oPos;
+      do {
+         oPos = this.generatePosition();
+      } while (this.isSelfOccupied(oPos));
+      return oPos;
+   };
+
+   this.generatePosition = function() {
+      var oPos = {};
+      oPos.x = Math.floor(this.seededRandom.generate(0, this.mapWidth));
+      oPos.y = Math.floor(this.seededRandom.generate(0, this.mapHeight));
+      return oPos;
+   };
 }
 
 window.onload = function() {
@@ -285,8 +318,31 @@ window.onload = function() {
                snakeModel: oSnakeModel
             };
             renderSnakeCell(elCell, oContext);
+            renderFoodCell(elCell, oContext);
          }
       }
+   };
+
+   var refresh = function(elCanvas, oSnakeModel) {
+      for (var y=0; y<oSnakeModel.mapHeight; y++) {
+         for (var x=0; x<oSnakeModel.mapWidth; x++) {
+            var elCell = elCanvas.children[oSnakeModel.mapWidth*y+x];
+            if (elCell.children.length > 0) {
+               elCell.children[0].remove();
+            }
+            var oContext = {
+               posX: x,
+               posY: y,
+               snakeModel: oSnakeModel
+            };
+            refreshCell(elCell, oContext);
+         }
+      }
+   };
+
+   var refreshCell = function(elCell, oContext) {
+      renderSnakeCell(elCell, oContext);
+      renderFoodCell(elCell, oContext);
    };
 
    var renderSnake = function(elCanvas, oSnakeModel) {
@@ -330,18 +386,25 @@ window.onload = function() {
    };
 
    var renderFoodCell = function(elCell, oContext) {
-
+      var oSnakeModel = oContext.snakeModel;
+      if (oSnakeModel.food.posX === oContext.posX && oSnakeModel.food.posY === oContext.posY) {
+         var elFood = document.createElement("div");
+         elFood.classList.add("food");
+         elCell.appendChild(elFood);
+      }
    };
 
    var oSnakeModel = new SnakeModel();
-
    oSnakeModel.addTails(3);
+   oSnakeModel.generateFood();
+
    var elCanvas = document.getElementById("canvas");
    renderLayout(elCanvas, oSnakeModel);
    //renderSnake(elCanvas, oSnakeModel);
 
    oSnakeModel.onModelChange = function() {
-      renderSnake(elCanvas, oSnakeModel);
+      // renderSnake(elCanvas, oSnakeModel);
+      refresh(elCanvas, oSnakeModel);
    };
    document.body.addEventListener('keydown', oSnakeModel.onKeyDown.bind(oSnakeModel));
 };
